@@ -4,6 +4,7 @@ import { Camera, MapPin, Send, CheckCircle, Upload, ExternalLink, Leaf, TreeDeci
 export default function GarbageReportApp() {
   const [step, setStep] = useState('welcome');
   const [imagePreview, setImagePreview] = useState(null);
+  const [compressedImage, setCompressedImage] = useState(null);
   const [formData, setFormData] = useState({
     image: null,
     details: '',
@@ -26,11 +27,7 @@ export default function GarbageReportApp() {
     };
   }, []);
 
-  const handleOpenReport = () => {
-    setStep('form');
-  };
-
-  const compressImage = (file, maxSizeKB = 400) => {
+  const compressImage = (file, maxSizeKB = 40) => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -40,7 +37,7 @@ export default function GarbageReportApp() {
           let width = img.width;
           let height = img.height;
           
-          const maxDimension = 1200;
+          const maxDimension = 800;
           if (width > height && width > maxDimension) {
             height = (height * maxDimension) / width;
             width = maxDimension;
@@ -56,9 +53,15 @@ export default function GarbageReportApp() {
           ctx.drawImage(img, 0, 0, width, height);
           
           let quality = 0.7;
-          canvas.toBlob((blob) => {
-            resolve(blob);
-          }, 'image/jpeg', quality);
+          let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          
+          while (compressedDataUrl.length > maxSizeKB * 1024 && quality > 0.1) {
+            quality -= 0.1;
+            compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          }
+          
+          console.log(`Image compressed to ~${(compressedDataUrl.length / 1024).toFixed(2)}KB at quality ${quality.toFixed(2)}`);
+          resolve(compressedDataUrl);
         };
         img.src = e.target.result;
       };
@@ -66,19 +69,23 @@ export default function GarbageReportApp() {
     });
   };
 
+  const handleOpenReport = () => {
+    setStep('form');
+  };
+
   const handleImageCapture = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Show preview
+      setFormData({ ...formData, image: file });
+      
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
       };
       reader.readAsDataURL(file);
       
-      // Compress for upload
-      const compressedBlob = await compressImage(file, 400);
-      setFormData({ ...formData, image: compressedBlob });
+      const compressed = await compressImage(file, 40);
+      setCompressedImage(compressed);
     }
   };
 
@@ -124,33 +131,6 @@ export default function GarbageReportApp() {
     }
   };
 
-  const uploadImageToImgBB = async (imageBlob) => {
-    try {
-      const formData = new FormData();
-      
-      // Convert blob to file
-      const imageFile = new File([imageBlob], 'garbage-report.jpg', { type: 'image/jpeg' });
-      formData.append('image', imageFile);
-      
-      const response = await fetch('https://api.imgbb.com/1/upload?key=c62549df03cc38b51b111441a25e5b11', {
-        method: 'POST',
-        body: formData
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        return data.data.url;
-      } else {
-        console.error('ImgBB error:', data);
-        throw new Error(data.error?.message || 'Image upload failed');
-      }
-    } catch (error) {
-      console.error('Upload error:', error);
-      throw new Error('Failed to upload image: ' + error.message);
-    }
-  };
-
   const handleSubmit = async () => {
     if (!formData.image) {
       alert('⚠️ Please capture a photo of the garbage before submitting.');
@@ -169,14 +149,8 @@ export default function GarbageReportApp() {
         throw new Error('EmailJS library not loaded. Please refresh the page and try again.');
       }
 
-      // Step 1: Upload image to ImgBB
-      console.log('Uploading image...');
-      const imageUrl = await uploadImageToImgBB(formData.image);
-      console.log('Image uploaded:', imageUrl);
-
-      // Step 2: Send email with image URL
       const reportId = `GR-${Date.now().toString().slice(-8)}`;
-      const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+      const timestamp = new Date().toLocaleString();
       
       const templateParams = {
         report_id: reportId,
@@ -185,11 +159,12 @@ export default function GarbageReportApp() {
         longitude: formData.location.lng.toFixed(6),
         google_maps_link: `https://www.google.com/maps?q=${formData.location.lat},${formData.location.lng}`,
         details: formData.details || 'No additional details provided',
-        image_url: imageUrl,
+        image_data: compressedImage,
         name: 'Citizen Report'
       };
 
       console.log('Sending email...');
+      console.log('Image size:', (compressedImage.length / 1024).toFixed(2), 'KB');
 
       const response = await window.emailjs.send(
         'service_d8u7ayd',
@@ -201,11 +176,13 @@ export default function GarbageReportApp() {
       alert('✅ Report submitted successfully!');
       setStep('success');
     } catch (error) {
-      console.error('Submission error:', error);
+      console.error('Detailed error:', error);
       
       let errorMessage = '❌ Failed to submit report.\n\n';
       
-      if (error.message) {
+      if (error.text) {
+        errorMessage += 'Error: ' + error.text + '\n\n';
+      } else if (error.message) {
         errorMessage += 'Error: ' + error.message + '\n\n';
       }
       
@@ -223,6 +200,7 @@ export default function GarbageReportApp() {
   const handleReset = () => {
     setStep('welcome');
     setImagePreview(null);
+    setCompressedImage(null);
     setFormData({
       image: null,
       details: '',
@@ -336,6 +314,7 @@ export default function GarbageReportApp() {
                       type="button"
                       onClick={() => {
                         setImagePreview(null);
+                        setCompressedImage(null);
                         setFormData({ ...formData, image: null });
                       }}
                       className="absolute top-3 right-3 bg-red-500 text-white rounded-full p-2.5 hover:bg-red-600 shadow-lg transition-all hover:scale-110"
@@ -344,7 +323,7 @@ export default function GarbageReportApp() {
                     </button>
                     <div className="absolute bottom-3 left-3 bg-green-500 text-white text-xs px-3 py-1 rounded-full font-semibold flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" />
-                      Photo Captured
+                      Photo Captured & Compressed
                     </div>
                   </div>
                 )}
