@@ -106,7 +106,7 @@ export default function GarbageReportApp() {
     try {
       // Check if EmailJS is loaded
       if (!window.emailjs) {
-        throw new Error('EmailJS not loaded. Please refresh and try again.');
+        throw new Error('EmailJS library not loaded. Please refresh the page and try again.');
       }
 
       const reportId = `GR-${Date.now().toString().slice(-8)}`;
@@ -122,19 +122,39 @@ export default function GarbageReportApp() {
         image_data: imagePreview
       };
 
-      console.log('Sending email with params:', templateParams);
+      console.log('Attempting to send email...');
+      console.log('Service ID: service_d8u7ayd');
+      console.log('Template ID: template_qsgyy3e');
+      console.log('Public Key: MJzgZh1FY-5o66gnS');
 
       const response = await window.emailjs.send(
-        'sbmprojectqr@gmail.com',
+        'service_d8u7ayd',
         'template_qsgyy3e',
         templateParams
       );
 
       console.log('Email sent successfully:', response);
+      alert('✅ Report submitted successfully!');
       setStep('success');
     } catch (error) {
-      console.error('Email sending failed:', error);
-      alert('❌ Failed to submit report. Error: ' + error.message + '\n\nPlease check your internet connection and try again.');
+      console.error('Detailed error:', error);
+      
+      let errorMessage = '❌ Failed to submit report.\n\n';
+      
+      if (error.text) {
+        errorMessage += 'Error: ' + error.text + '\n\n';
+      } else if (error.message) {
+        errorMessage += 'Error: ' + error.message + '\n\n';
+      }
+      
+      errorMessage += 'Possible issues:\n';
+      errorMessage += '1. Check your EmailJS Service ID\n';
+      errorMessage += '2. Verify Template ID: template_qsgyy3e\n';
+      errorMessage += '3. Confirm Public Key: MJzgZh1FY-5o66gnS\n';
+      errorMessage += '4. Ensure internet connection is stable\n\n';
+      errorMessage += 'Check browser console for details.';
+      
+      alert(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -446,6 +466,10 @@ export default function GarbageReportApp() {
             <Leaf className="w-4 h-4 text-green-600" />
           </p>
           <p className="text-xs text-gray-500 mt-2">Powered by EmailJS • Municipal Corporation</p>
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <p className="text-xs text-gray-600 font-medium">Developed by Anurag Kumar</p>
+            <p className="text-xs text-gray-500 mt-1">Contributors: Shloka Reddy, Varsha Sinha</p>
+          </div>
         </div>
       </div>
     </div>
