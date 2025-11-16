@@ -11,6 +11,9 @@ export default function GarbageReportApp() {
     location: null
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [trackingId, setTrackingId] = useState('');
+  const [trackingStatus, setTrackingStatus] = useState(null);
+  const [generatedReportId, setGeneratedReportId] = useState('');
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -71,6 +74,56 @@ export default function GarbageReportApp() {
 
   const handleOpenReport = () => {
     setStep('form');
+  };
+
+  const handleTrackReport = () => {
+    setStep('track');
+  };
+
+  const checkReportStatus = async () => {
+    if (!trackingId || trackingId.length < 8) {
+      alert('⚠️ Please enter a valid Report ID');
+      return;
+    }
+
+    // Get stored reports from browser storage
+    const storedReports = JSON.parse(localStorage.getItem('garbageReports') || '{}');
+    const reportData = storedReports[trackingId];
+
+    if (!reportData) {
+      alert('❌ Invalid Report ID! Please check and try again.');
+      setTrackingStatus(null);
+      return;
+    }
+
+    // Calculate time-based progress (1hr, 2hr, 3hr, 1hr = 7hrs total)
+    const now = Date.now();
+    const elapsed = (now - reportData.timestamp) / (1000 * 60 * 60); // hours
+    
+    const statuses = [
+      { 
+        step: 1, 
+        reached: true, // Always true (report received)
+        time: 0
+      },
+      { 
+        step: 2, 
+        reached: elapsed >= 1, // After 1 hour
+        time: 1
+      },
+      { 
+        step: 3, 
+        reached: elapsed >= 3, // After 1+2 = 3 hours
+        time: 3
+      },
+      { 
+        step: 4, 
+        reached: elapsed >= 6, // After 1+2+3 = 6 hours
+        time: 6
+      }
+    ];
+    
+    setTrackingStatus(statuses);
   };
 
   const handleImageCapture = async (e) => {
@@ -151,6 +204,17 @@ export default function GarbageReportApp() {
 
       const reportId = `GR-${Date.now().toString().slice(-8)}`;
       const timestamp = new Date().toLocaleString();
+      
+      // Store report in localStorage
+      const storedReports = JSON.parse(localStorage.getItem('garbageReports') || '{}');
+      storedReports[reportId] = {
+        timestamp: Date.now(),
+        location: formData.location,
+        details: formData.details
+      };
+      localStorage.setItem('garbageReports', JSON.stringify(storedReports));
+      
+      setGeneratedReportId(reportId);
       
       const templateParams = {
         report_id: reportId,
@@ -256,17 +320,26 @@ export default function GarbageReportApp() {
               
               <button
                 onClick={handleOpenReport}
-                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-5 px-12 rounded-full shadow-xl transition-all transform hover:scale-105 hover:shadow-2xl text-lg"
+                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-5 px-12 rounded-full shadow-xl transition-all transform hover:scale-105 hover:shadow-2xl text-lg"
               >
-                <span className="flex items-center gap-3">
+                <span className="flex items-center justify-center gap-3">
                   📝 Open Report Form
+                </span>
+              </button>
+
+              <button
+                onClick={handleTrackReport}
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-5 px-12 rounded-full shadow-xl transition-all transform hover:scale-105 hover:shadow-2xl text-lg"
+              >
+                <span className="flex items-center justify-center gap-3">
+                  🔍 Track Report Status
                 </span>
               </button>
 
               <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mt-4">
                 <p className="text-sm text-blue-800 text-center leading-relaxed">
                   💡 <strong>Quick Tip:</strong> Take a clear photo, add location, and submit. 
-                  The Municipal Corporation will be notified immediately!
+                  Keep your Report ID safe to track progress!
                 </p>
               </div>
             </div>
@@ -445,7 +518,7 @@ export default function GarbageReportApp() {
                 </p>
                 <div className="bg-gray-50 rounded-lg p-3 space-y-1">
                   <p className="text-sm text-gray-700">
-                    <strong>Report ID:</strong> GR-{Date.now().toString().slice(-8)}
+                    <strong>Report ID:</strong> {generatedReportId}
                   </p>
                   <p className="text-xs text-gray-600">
                     <strong>Sent to:</strong> Municipal Corporation
@@ -455,6 +528,22 @@ export default function GarbageReportApp() {
                   </p>
                 </div>
               </div>
+              <div className="bg-blue-50 border-2 border-blue-400 rounded-2xl p-4">
+                <p className="text-sm font-bold text-blue-800 flex items-center justify-center gap-2">
+                  ⏱️ Estimated Completion Time
+                </p>
+                <p className="text-xs text-blue-700 mt-2 text-center">
+                  The area will be cleaned within <strong>8 hours</strong>
+                </p>
+              </div>
+              <div className="bg-yellow-50 border-2 border-yellow-400 rounded-2xl p-4">
+                <p className="text-sm font-bold text-yellow-800 flex items-center justify-center gap-2">
+                  ⚠️ Important Reminder
+                </p>
+                <p className="text-xs text-yellow-700 mt-2">
+                  Please save your Report ID above to track the cleanup progress!
+                </p>
+              </div>
               <div className="flex flex-col gap-3 mt-6">
                 <button
                   onClick={handleReset}
@@ -463,6 +552,131 @@ export default function GarbageReportApp() {
                   📸 Report Another Issue
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Track Report Step */}
+        {step === 'track' && (
+          <div className="bg-white/95 backdrop-blur-sm shadow-xl p-6 rounded-b-3xl">
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-gray-800 text-center">Track Your Report</h2>
+              
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-3">
+                  Enter Report ID
+                </label>
+                <input
+                  type="text"
+                  value={trackingId}
+                  onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
+                  placeholder="GR-12345678"
+                  className="w-full border-2 border-gray-300 rounded-xl p-4 text-center text-lg font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <button
+                onClick={checkReportStatus}
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all transform hover:scale-105"
+              >
+                🔍 Check Status
+              </button>
+
+              {trackingStatus && (
+                <div className="mt-8 space-y-6">
+                  <h3 className="text-lg font-bold text-gray-800 text-center">Report Progress</h3>
+                  
+                  <div className="relative py-4">
+                    {/* Status Steps */}
+                    <div className="space-y-0 relative">
+                      {[
+                        { icon: '📨', title: 'Report Received', desc: 'Your report has been logged' },
+                        { icon: '👀', title: 'Under Review', desc: 'Municipal team is reviewing' },
+                        { icon: '🚛', title: 'Cleanup Dispatched', desc: 'Warriors deployed to location' },
+                        { icon: '✨', title: 'Mission Complete', desc: 'Area cleaned successfully' }
+                      ].map((item, index) => {
+                        const isComplete = trackingStatus[index]?.reached;
+                        const nextIsComplete = trackingStatus[index + 1]?.reached;
+                        
+                        return (
+                          <div key={index}>
+                            <div className="flex items-center gap-4 relative">
+                              {/* Icon Circle */}
+                              <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl z-10 transition-all duration-500 ${
+                                isComplete 
+                                  ? 'bg-gradient-to-br from-green-400 to-green-600 shadow-lg scale-110' 
+                                  : 'bg-gray-300'
+                              }`}>
+                                <span className={isComplete ? 'animate-bounce' : ''}>{item.icon}</span>
+                              </div>
+                              
+                              {/* Text */}
+                              <div className="flex-1">
+                                <p className={`font-bold ${isComplete ? 'text-green-700' : 'text-gray-400'}`}>
+                                  {item.title}
+                                </p>
+                                <p className={`text-sm ${isComplete ? 'text-gray-600' : 'text-gray-400'}`}>
+                                  {item.desc}
+                                </p>
+                                {isComplete && (
+                                  <p className="text-xs text-green-600 mt-1 font-semibold">
+                                    ✓ Completed
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Connecting Line - Only show if not last item */}
+                            {index < 3 && (
+                              <div className="flex items-center gap-4 h-16">
+                                <div className="w-16 flex justify-center">
+                                  <div className="relative w-2 h-full">
+                                    {/* Gray background line */}
+                                    <div className="absolute inset-0 bg-gray-300 rounded-full"></div>
+                                    {/* Green filled line - only shows if current is complete */}
+                                    {isComplete && (
+                                      <div 
+                                        className="absolute inset-0 bg-gradient-to-b from-green-500 to-green-600 rounded-full transition-all duration-1000 ease-out"
+                                        style={{
+                                          height: nextIsComplete ? '100%' : '0%',
+                                          bottom: 0,
+                                          top: 'auto'
+                                        }}
+                                      ></div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex-1"></div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {trackingStatus.every(s => s.reached) && (
+                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-400 rounded-2xl p-6 text-center">
+                      <div className="text-5xl mb-3">🎉</div>
+                      <p className="text-xl font-bold text-green-800">Thank You, Hero!</p>
+                      <p className="text-sm text-green-700 mt-2">
+                        Your contribution made a real difference in keeping our city clean!
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  setStep('welcome');
+                  setTrackingId('');
+                  setTrackingStatus(null);
+                }}
+                className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 rounded-xl transition-colors"
+              >
+                ← Back to Home
+              </button>
             </div>
           </div>
         )}
