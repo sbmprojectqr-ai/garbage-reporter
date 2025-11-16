@@ -276,16 +276,16 @@ export default function GarbageReportApp() {
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50">
       {/* Decorative Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <TreeDeciduous className="absolute top-10 left-5 w-24 h-24 text-green-200 opacity-20" />
-        <TreeDeciduous className="absolute top-40 right-10 w-32 h-32 text-emerald-200 opacity-15" />
-        <Leaf className="absolute bottom-20 left-20 w-20 h-20 text-green-300 opacity-25" />
-        <TreeDeciduous className="absolute bottom-40 right-5 w-28 h-28 text-teal-200 opacity-20" />
-        <Leaf className="absolute top-60 right-40 w-16 h-16 text-emerald-300 opacity-20 transform rotate-45" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-green-200 rounded-full blur-3xl opacity-10"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-200 rounded-full blur-3xl opacity-10"></div>
+        <TreeDeciduous className="absolute top-10 left-5 w-16 md:w-24 h-16 md:h-24 text-green-200 opacity-20" />
+        <TreeDeciduous className="absolute top-40 right-10 w-24 md:w-32 h-24 md:h-32 text-emerald-200 opacity-15" />
+        <Leaf className="absolute bottom-20 left-20 w-16 md:w-20 h-16 md:h-20 text-green-300 opacity-25" />
+        <TreeDeciduous className="absolute bottom-40 right-5 w-20 md:w-28 h-20 md:h-28 text-teal-200 opacity-20" />
+        <Leaf className="absolute top-60 right-40 w-12 md:w-16 h-12 md:h-16 text-emerald-300 opacity-20 transform rotate-45" />
+        <div className="absolute top-0 right-0 w-64 md:w-96 h-64 md:h-96 bg-green-200 rounded-full blur-3xl opacity-10"></div>
+        <div className="absolute bottom-0 left-0 w-64 md:w-96 h-64 md:h-96 bg-emerald-200 rounded-full blur-3xl opacity-10"></div>
       </div>
 
-      <div className="max-w-md mx-auto relative z-10 p-4">
+      <div className="max-w-md mx-auto relative z-10 p-4 md:p-6">
         {/* Header with Earth Icon */}
         <div className="bg-white/95 backdrop-blur-sm rounded-t-3xl shadow-xl p-6 mt-8 border-b-4 border-green-500">
           <div className="flex items-center justify-center mb-3">
@@ -293,10 +293,10 @@ export default function GarbageReportApp() {
               <span className="text-3xl">🌍</span>
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600 text-center">
+          <h1 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600 text-center">
             Clean City Reporter
           </h1>
-          <p className="text-sm text-gray-600 text-center mt-2 flex items-center justify-center gap-1">
+          <p className="text-xs md:text-sm text-gray-600 text-center mt-2 flex items-center justify-center gap-1 flex-wrap">
             <Leaf className="w-4 h-4 text-green-500" />
             Keep our environment clean & green
             <Leaf className="w-4 h-4 text-green-500" />
@@ -320,7 +320,7 @@ export default function GarbageReportApp() {
               
               <button
                 onClick={handleOpenReport}
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-5 px-12 rounded-full shadow-xl transition-all transform hover:scale-105 hover:shadow-2xl text-lg"
+                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-4 md:py-5 px-8 md:px-12 rounded-full shadow-xl transition-all transform hover:scale-105 hover:shadow-2xl text-base md:text-lg"
               >
                 <span className="flex items-center justify-center gap-3">
                   📝 Open Report Form
@@ -329,7 +329,7 @@ export default function GarbageReportApp() {
 
               <button
                 onClick={handleTrackReport}
-                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-5 px-12 rounded-full shadow-xl transition-all transform hover:scale-105 hover:shadow-2xl text-lg"
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-4 md:py-5 px-8 md:px-12 rounded-full shadow-xl transition-all transform hover:scale-105 hover:shadow-2xl text-base md:text-lg"
               >
                 <span className="flex items-center justify-center gap-3">
                   🔍 Track Report Status
@@ -373,8 +373,14 @@ export default function GarbageReportApp() {
                     className="w-full border-3 border-dashed border-gray-300 rounded-2xl p-10 hover:border-green-500 hover:bg-green-50 transition-all bg-gradient-to-br from-gray-50 to-white"
                   >
                     <Upload className="w-16 h-16 mx-auto text-gray-400 mb-3" />
-                    <p className="text-base font-semibold text-gray-700">Tap to Open Camera</p>
-                    <p className="text-xs text-gray-500 mt-2">Take a clear photo of the waste</p>
+                    <p className="text-base font-semibold text-gray-700">
+                      {/Mobi|Android/i.test(navigator.userAgent) ? 'Tap to Open Camera' : 'Click to Upload or Capture Photo'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {/Mobi|Android/i.test(navigator.userAgent) 
+                        ? 'Take a clear photo of the waste' 
+                        : 'Camera will open on supported devices'}
+                    </p>
                   </button>
                 ) : (
                   <div className="relative group">
