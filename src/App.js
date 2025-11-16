@@ -30,15 +30,55 @@ export default function GarbageReportApp() {
     setStep('form');
   };
 
-  const handleImageCapture = (e) => {
+  const compressImage = (file, maxSizeKB = 400) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          const maxDimension = 1200;
+          if (width > height && width > maxDimension) {
+            height = (height * maxDimension) / width;
+            width = maxDimension;
+          } else if (height > maxDimension) {
+            width = (width * maxDimension) / height;
+            height = maxDimension;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          let quality = 0.7;
+          canvas.toBlob((blob) => {
+            resolve(blob);
+          }, 'image/jpeg', quality);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageCapture = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData({ ...formData, image: file });
+      // Show preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
       };
       reader.readAsDataURL(file);
+      
+      // Compress for upload
+      const compressedBlob = await compressImage(file, 400);
+      setFormData({ ...formData, image: compressedBlob });
     }
   };
 
@@ -84,21 +124,30 @@ export default function GarbageReportApp() {
     }
   };
 
-  const uploadImageToImgBB = async (imageFile) => {
-    const formData = new FormData();
-    formData.append('image', imageFile);
-    formData.append('key', 'c62549df03cc38b51b111441a25e5b11'); // Free ImgBB API key
-    
-    const response = await fetch('https://api.imgbb.com/1/upload', {
-      method: 'POST',
-      body: formData
-    });
-    
-    const data = await response.json();
-    if (data.success) {
-      return data.data.url;
-    } else {
-      throw new Error('Image upload failed');
+  const uploadImageToImgBB = async (imageBlob) => {
+    try {
+      const formData = new FormData();
+      
+      // Convert blob to file
+      const imageFile = new File([imageBlob], 'garbage-report.jpg', { type: 'image/jpeg' });
+      formData.append('image', imageFile);
+      
+      const response = await fetch('https://api.imgbb.com/1/upload?key=c62549df03cc38b51b111441a25e5b11', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        return data.data.url;
+      } else {
+        console.error('ImgBB error:', data);
+        throw new Error(data.error?.message || 'Image upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      throw new Error('Failed to upload image: ' + error.message);
     }
   };
 
