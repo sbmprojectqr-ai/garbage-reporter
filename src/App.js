@@ -4,6 +4,7 @@ import { Camera, MapPin, Send, CheckCircle, Upload, ExternalLink, Leaf, TreeDeci
 export default function GarbageReportApp() {
   const [step, setStep] = useState('welcome');
   const [imagePreview, setImagePreview] = useState(null);
+  const [compressedImage, setCompressedImage] = useState(null);
   const [formData, setFormData] = useState({
     image: null,
     details: '',
@@ -26,6 +27,51 @@ export default function GarbageReportApp() {
     };
   }, []);
 
+  const compressImage = (file, maxSizeKB = 40) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Calculate new dimensions while maintaining aspect ratio
+          const maxDimension = 800;
+          if (width > height && width > maxDimension) {
+            height = (height * maxDimension) / width;
+            width = maxDimension;
+          } else if (height > maxDimension) {
+            width = (width * maxDimension) / height;
+            height = maxDimension;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Start with quality 0.7 and reduce if needed
+          let quality = 0.7;
+          let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          
+          // Keep reducing quality until under maxSizeKB
+          while (compressedDataUrl.length > maxSizeKB * 1024 && quality > 0.1) {
+            quality -= 0.1;
+            compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          }
+          
+          console.log(`Image compressed to ~${(compressedDataUrl.length / 1024).toFixed(2)}KB at quality ${quality.toFixed(2)}`);
+          resolve(compressedDataUrl);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleOpenReport = () => {
     setStep('form');
   };
@@ -34,21 +80,26 @@ export default function GarbageReportApp() {
     setStep('form');
   };
 
-  const handleImageCapture = (e) => {
+  const handleImageCapture = async (e) => {
     const file = e.target.files[0];
     if (file) {
       setFormData({ ...formData, image: file });
+      
+      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
       };
       reader.readAsDataURL(file);
+      
+      // Compress for email
+      const compressed = await compressImage(file, 40);
+      setCompressedImage(compressed);
     }
   };
 
   const handleGetLocation = () => {
     if (navigator.geolocation) {
-      // Show loading state
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setFormData({
@@ -90,7 +141,6 @@ export default function GarbageReportApp() {
   };
 
   const handleSubmit = async () => {
-    // Validate inputs
     if (!formData.image) {
       alert('⚠️ Please capture a photo of the garbage before submitting.');
       return;
@@ -104,7 +154,6 @@ export default function GarbageReportApp() {
     setIsSubmitting(true);
 
     try {
-      // Check if EmailJS is loaded
       if (!window.emailjs) {
         throw new Error('EmailJS library not loaded. Please refresh the page and try again.');
       }
@@ -119,13 +168,12 @@ export default function GarbageReportApp() {
         longitude: formData.location.lng.toFixed(6),
         google_maps_link: `https://www.google.com/maps?q=${formData.location.lat},${formData.location.lng}`,
         details: formData.details || 'No additional details provided',
-        image_data: imagePreview
+        image_data: compressedImage,
+        name: 'Citizen Report'
       };
 
-      console.log('Attempting to send email...');
-      console.log('Service ID: service_d8u7ayd');
-      console.log('Template ID: template_qsgyy3e');
-      console.log('Public Key: MJzgZh1FY-5o66gnS');
+      console.log('Sending email...');
+      console.log('Image size:', (compressedImage.length / 1024).toFixed(2), 'KB');
 
       const response = await window.emailjs.send(
         'service_d8u7ayd',
@@ -147,12 +195,10 @@ export default function GarbageReportApp() {
         errorMessage += 'Error: ' + error.message + '\n\n';
       }
       
-      errorMessage += 'Possible issues:\n';
-      errorMessage += '1. Check your EmailJS Service ID\n';
-      errorMessage += '2. Verify Template ID: template_qsgyy3e\n';
-      errorMessage += '3. Confirm Public Key: MJzgZh1FY-5o66gnS\n';
-      errorMessage += '4. Ensure internet connection is stable\n\n';
-      errorMessage += 'Check browser console for details.';
+      errorMessage += 'Please check:\n';
+      errorMessage += '• Internet connection\n';
+      errorMessage += '• Try again in a moment\n';
+      errorMessage += '• Contact support if issue persists';
       
       alert(errorMessage);
     } finally {
@@ -163,6 +209,7 @@ export default function GarbageReportApp() {
   const handleReset = () => {
     setStep('welcome');
     setImagePreview(null);
+    setCompressedImage(null);
     setFormData({
       image: null,
       details: '',
@@ -235,34 +282,6 @@ export default function GarbageReportApp() {
           </div>
         )}
 
-        {/* QR Scan Step */}
-        {step === 'scan' && (
-          <div className="bg-white/95 backdrop-blur-sm shadow-xl p-8 rounded-b-3xl">
-            <div className="flex flex-col items-center space-y-6">
-              <div className="w-56 h-56 border-4 border-dashed border-green-400 rounded-3xl flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 shadow-inner">
-                <div className="text-center">
-                  <div className="text-7xl mb-3 animate-pulse">📱</div>
-                  <p className="text-gray-700 font-semibold">Scan QR Code</p>
-                  <p className="text-xs text-gray-500 mt-2">to start reporting</p>
-                </div>
-              </div>
-              <button
-                onClick={handleQRScan}
-                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-4 px-10 rounded-full shadow-lg transition-all transform hover:scale-105 hover:shadow-xl"
-              >
-                <span className="flex items-center gap-2">
-                  📷 Start Reporting
-                </span>
-              </button>
-              <div className="bg-green-50 border border-green-200 rounded-xl p-3 mt-4">
-                <p className="text-xs text-green-700 text-center">
-                  💡 In production, scan QR codes placed at garbage collection points
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Form Step */}
         {step === 'form' && (
           <div className="bg-white/95 backdrop-blur-sm shadow-xl p-6 rounded-b-3xl">
@@ -304,6 +323,7 @@ export default function GarbageReportApp() {
                       type="button"
                       onClick={() => {
                         setImagePreview(null);
+                        setCompressedImage(null);
                         setFormData({ ...formData, image: null });
                       }}
                       className="absolute top-3 right-3 bg-red-500 text-white rounded-full p-2.5 hover:bg-red-600 shadow-lg transition-all hover:scale-110"
@@ -312,7 +332,7 @@ export default function GarbageReportApp() {
                     </button>
                     <div className="absolute bottom-3 left-3 bg-green-500 text-white text-xs px-3 py-1 rounded-full font-semibold flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" />
-                      Photo Captured
+                      Photo Captured & Compressed
                     </div>
                   </div>
                 )}
@@ -437,7 +457,7 @@ export default function GarbageReportApp() {
                     <strong>Report ID:</strong> GR-{Date.now().toString().slice(-8)}
                   </p>
                   <p className="text-xs text-gray-600">
-                    <strong>Sent to:</strong> sbmprojectqr@gmail.com
+                    <strong>Sent to:</strong> Municipal Corporation
                   </p>
                   <p className="text-xs text-gray-600">
                     <strong>Time:</strong> {new Date().toLocaleString()}
