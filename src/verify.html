@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NITP Cleanup Verification</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-emerald-50 to-green-50 min-h-screen p-4">
+    <div class="max-w-2xl mx-auto mt-8">
+        <div class="bg-white rounded-3xl shadow-xl p-8 border-4 border-green-500">
+            <div class="flex items-center justify-center mb-6">
+                <div class="bg-gradient-to-br from-green-400 to-emerald-500 p-4 rounded-full">
+                    <span class="text-4xl">🎓</span>
+                </div>
+            </div>
+            <h1 class="text-3xl font-bold text-center text-green-600 mb-2">NITP Cleanup Verification</h1>
+            <p class="text-center text-gray-600 mb-8">Confirm the completion of cleanup task</p>
+
+            <div id="content">
+                <!-- Loading state -->
+                <div id="loading" class="text-center py-8">
+                    <div class="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p class="text-gray-600">Loading report details...</p>
+                </div>
+
+                <!-- Report details -->
+                <div id="reportDetails" class="hidden">
+                    <div class="bg-green-50 border-2 border-green-300 rounded-2xl p-6 mb-6">
+                        <p class="text-sm font-bold text-gray-700 mb-2">📋 Report ID:</p>
+                        <p id="reportId" class="text-2xl font-mono font-bold text-green-800 mb-4"></p>
+                        <p class="text-xs text-gray-600" id="timestamp"></p>
+                    </div>
+
+                    <div class="bg-white border-2 border-gray-200 rounded-2xl p-6 mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">📍 Location:</h3>
+                        <p class="text-sm text-gray-700 mb-2" id="location"></p>
+                        <a id="mapsLink" href="#" target="_blank" class="text-blue-600 underline text-sm">🗺️ View on Google Maps</a>
+                    </div>
+
+                    <div class="bg-white border-2 border-gray-200 rounded-2xl p-6 mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">📝 Details:</h3>
+                        <p class="text-sm text-gray-700" id="details"></p>
+                    </div>
+
+                    <div class="bg-white border-2 border-gray-200 rounded-2xl p-6 mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">📷 Photo Evidence:</h3>
+                        <img id="garbagePhoto" src="" alt="Garbage" class="w-full rounded-xl shadow-lg">
+                    </div>
+
+                    <div class="bg-yellow-50 border-2 border-yellow-400 rounded-2xl p-6 mb-6">
+                        <h3 class="text-xl font-bold text-yellow-900 text-center mb-4">⚠️ Verification Required</h3>
+                        <p class="text-center text-yellow-800 mb-6">Has the cleanup been completed at this location?</p>
+                        
+                        <div class="flex gap-4 justify-center">
+                            <button onclick="verifyCleanup(true)" class="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-all transform hover:scale-105">
+                                ✅ Yes, Completed
+                            </button>
+                            <button onclick="verifyCleanup(false)" class="bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-all transform hover:scale-105">
+                                ❌ Not Yet
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Success state -->
+                <div id="success" class="hidden text-center py-8">
+                    <div class="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <span class="text-5xl">✅</span>
+                    </div>
+                    <h2 class="text-3xl font-bold text-green-800 mb-4">Thank You!</h2>
+                    <p class="text-gray-700 text-lg">Cleanup status has been updated successfully.</p>
+                </div>
+
+                <!-- Error state -->
+                <div id="error" class="hidden text-center py-8">
+                    <div class="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <span class="text-5xl">❌</span>
+                    </div>
+                    <h2 class="text-2xl font-bold text-red-600 mb-4">Invalid Report ID</h2>
+                    <p class="text-gray-700">Please check the link and try again.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-6 text-sm text-gray-600">
+            <p>NITP Clean Campus System</p>
+            <p class="text-xs mt-2">Developed by Anurag Kumar</p>
+        </div>
+    </div>
+
+    <script>
+        // Get report ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const reportId = urlParams.get('id');
+
+        // Load report details
+        window.addEventListener('DOMContentLoaded', function() {
+            if (!reportId) {
+                showError();
+                return;
+            }
+
+            // Get stored reports from localStorage
+            const storedReports = JSON.parse(localStorage.getItem('garbageReports') || '{}');
+            const reportData = storedReports[reportId];
+
+            if (!reportData) {
+                showError();
+                return;
+            }
+
+            // Display report details
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('reportDetails').classList.remove('hidden');
+            
+            document.getElementById('reportId').textContent = reportId;
+            document.getElementById('timestamp').textContent = 'Reported: ' + new Date(reportData.timestamp).toLocaleString();
+            document.getElementById('location').textContent = `Lat: ${reportData.location.lat.toFixed(6)}, Lng: ${reportData.location.lng.toFixed(6)}`;
+            document.getElementById('mapsLink').href = `https://www.google.com/maps?q=${reportData.location.lat},${reportData.location.lng}`;
+            document.getElementById('details').textContent = reportData.details || 'No additional details provided';
+            
+            // Note: In production, the image would be loaded from your server
+            // For now, we'll show a placeholder
+            document.getElementById('garbagePhoto').src = reportData.imageUrl || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23e5e7eb" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" font-size="20" text-anchor="middle" fill="%236b7280"%3EImage attached in email%3C/text%3E%3C/svg%3E';
+        });
+
+        function verifyCleanup(isCompleted) {
+            if (!isCompleted) {
+                alert('Please complete the cleanup first before verifying.');
+                return;
+            }
+
+            // Update verification status
+            const storedReports = JSON.parse(localStorage.getItem('garbageReports') || '{}');
+            if (storedReports[reportId]) {
+                storedReports[reportId].verified = true;
+                storedReports[reportId].verifiedAt = Date.now();
+                localStorage.setItem('garbageReports', JSON.stringify(storedReports));
+                
+                // Show success message
+                document.getElementById('reportDetails').classList.add('hidden');
+                document.getElementById('success').classList.remove('hidden');
+            }
+        }
+
+        function showError() {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('error').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
