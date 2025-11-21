@@ -11,9 +11,18 @@ export default function GarbageReportApp() {
   const [trackingStatus, setTrackingStatus] = useState(null);
   const [generatedReportId, setGeneratedReportId] = useState('');
   const [loadingStage, setLoadingStage] = useState(0);
+  const [verifyReportId, setVerifyReportId] = useState('');
   const fileInputRef = useRef(null);
 
   useEffect(() => {
+    // Check if this is a verification URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const verifyId = urlParams.get('id');
+    if (verifyId) {
+      setVerifyReportId(verifyId);
+      setStep('verify');
+    }
+
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
     script.async = true;
@@ -151,7 +160,7 @@ export default function GarbageReportApp() {
         google_maps_link: `https://www.google.com/maps?q=${formData.location.lat},${formData.location.lng}`,
         details: formData.details || 'No details',
         image_data: compressedImage,
-        verify_link: `${window.location.origin}/verify.html?id=${reportId}`
+        verify_link: `${window.location.origin}${window.location.pathname}?id=${reportId}`
       });
 
       setTimeout(() => { setStep('success'); setIsSubmitting(false); }, 1000);
@@ -371,6 +380,68 @@ export default function GarbageReportApp() {
               </div>
             )}
             <button onClick={() => { setStep('welcome'); setTrackingId(''); setTrackingStatus(null); }} className="w-full bg-gray-200 py-3 rounded-xl mt-6">← Back</button>
+          </div>
+        )}
+
+        {step === 'verify' && (
+          <div className="bg-white/95 backdrop-blur-sm shadow-xl p-6 rounded-b-3xl">
+            <div className="text-center space-y-6">
+              <div className="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mx-auto">
+                <span className="text-5xl">🧹</span>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800">Cleanup Verification</h2>
+              
+              <div className="bg-green-50 border-2 border-green-300 rounded-2xl p-4">
+                <p className="text-sm font-bold text-gray-700">Report ID:</p>
+                <p className="text-xl font-mono font-bold text-green-800">{verifyReportId}</p>
+              </div>
+
+              <div className="bg-yellow-50 border-2 border-yellow-400 rounded-2xl p-6">
+                <h3 className="text-xl font-bold text-yellow-900 mb-4">⚠️ Verification Required</h3>
+                <p className="text-yellow-800 mb-6">Has the cleanup been completed at this location?</p>
+                
+                <div className="flex gap-4 justify-center">
+                  <button 
+                    onClick={() => {
+                      const storedReports = JSON.parse(localStorage.getItem('garbageReports') || '{}');
+                      if (storedReports[verifyReportId]) {
+                        storedReports[verifyReportId].verified = true;
+                        storedReports[verifyReportId].verifiedAt = Date.now();
+                        localStorage.setItem('garbageReports', JSON.stringify(storedReports));
+                        setStep('verifySuccess');
+                      } else {
+                        alert('❌ Invalid Report ID!');
+                      }
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-all transform hover:scale-105"
+                  >
+                    ✅ Yes, Completed
+                  </button>
+                  <button 
+                    onClick={() => alert('Please complete the cleanup before verifying.')}
+                    className="bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-all transform hover:scale-105"
+                  >
+                    ❌ Not Yet
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 'verifySuccess' && (
+          <div className="bg-white/95 backdrop-blur-sm shadow-xl p-8 rounded-b-3xl text-center">
+            <div className="w-32 h-32 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-20 h-20 text-white" />
+            </div>
+            <h2 className="text-3xl font-bold text-green-800 mb-4">Thank You!</h2>
+            <p className="text-gray-700 text-lg mb-4">Cleanup status has been updated successfully.</p>
+            <div className="bg-green-50 border-2 border-green-300 rounded-2xl p-4">
+              <p className="text-sm text-green-800">Report <strong>{verifyReportId}</strong> marked as complete!</p>
+            </div>
+            <button onClick={() => { setStep('welcome'); setVerifyReportId(''); window.history.replaceState({}, '', window.location.pathname); }} className="mt-6 bg-blue-600 text-white font-bold py-4 px-8 rounded-full">
+              Go to Home
+            </button>
           </div>
         )}
       </div>
